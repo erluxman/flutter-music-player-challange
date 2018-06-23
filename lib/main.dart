@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_challange_music_player/Songs.dart';
 import 'package:flutter_challange_music_player/theme.dart';
+import 'package:fluttery/gestures.dart';
 import 'package:meta/meta.dart';
 
 void main() => runApp(new MyApp());
@@ -49,7 +50,9 @@ class _MyHomePageState extends State<MyHomePage> {
       body: new Column(
         children: <Widget>[
           //Seek bar
-          SeekBar(),
+          new Expanded(
+            child: RadialSeekBar(),
+          ),
           //Visualizer
           Visualizer(),
           //Controls song title and artist name
@@ -60,26 +63,117 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 }
 
-class SeekBar extends StatelessWidget {
+class RadialSeekBar extends StatefulWidget {
+  final double seekPercent;
+
+  RadialSeekBar({this.seekPercent = 0.0});
+
+  @override
+  RadialSeekBarState createState() {
+    return RadialSeekBarState();
+  }
+}
+
+class RadialSeekBarState extends State<RadialSeekBar> {
+  double _seekPercentage = 0.0;
+  double _startDragPercentage;
+  double _currentDragPercentage;
+  PolarCoord _startDragCoord;
+
+  @override
+  void initState() {
+    super.initState();
+    _seekPercentage = widget.seekPercent;
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _seekPercentage = widget.seekPercent;
+  }
+
+  _onDragStart(PolarCoord coord) {
+    _startDragCoord = coord;
+    _startDragPercentage = _seekPercentage;
+  }
+
+  _onDragUpdate(PolarCoord coord) {
+    final dragAngle = coord.angle - _startDragCoord.angle;
+    final dragPercent = dragAngle / (2 * pi);
+    setState(() =>
+        _currentDragPercentage = (_startDragPercentage + dragPercent) % 1.0);
+  }
+
+  _onDragStop() {
+    _seekPercentage = _currentDragPercentage;
+    _currentDragPercentage = null;
+    _startDragCoord = null;
+    _startDragPercentage = 0.0;
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Expanded(
-      child: Center(
-        child: Container(
-          height: 140.0,
-          width: 140.0,
-          child: new RadialProgressbar(
-            progressPercentage: 0.25,
-            thumbPosition: 0.25,
-            innerPadding: const EdgeInsets.all(10.0),
-            progressColor: darkAccentColor,
-            trackColor: lightAccentColor,
-            thumbColor: accentColor,
-            child: new ClipOval(
-              clipper: CircleClipper(),
-              child: Image.network(
-                demoPlaylist.songs[0].albumArtUrl,
-                fit: BoxFit.cover,
+    return new RadialDragGestureDetector(
+      onRadialDragStart: _onDragStart,
+      onRadialDragEnd: _onDragStop,
+      onRadialDragUpdate: _onDragUpdate,
+      child: new Container(
+        width: double.infinity,
+        height: double.infinity,
+        color: Colors.transparent,
+        child: Center(
+          child: Container(
+            height: 140.0,
+            width: 140.0,
+            child: RadialProgressbar(
+              thumbPosition: _currentDragPercentage ?? _seekPercentage,
+              progressPercentage: _currentDragPercentage ?? _seekPercentage,
+              innerPadding: const EdgeInsets.all(10.0),
+              progressColor: accentColor.withOpacity(0.9),
+              trackColor: accentColor.withOpacity(0.3),
+              thumbSize: 6.0,
+              thumbColor: accentColor,
+              child: new ClipOval(
+                clipper: CircleClipper(),
+                child: Image.network(
+                  demoPlaylist.songs[0].albumArtUrl,
+                  fit: BoxFit.cover,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  RadialDragGestureDetector buildRadialSeekBar() {
+    return new RadialDragGestureDetector(
+      onRadialDragStart: _onDragStart,
+      onRadialDragEnd: _onDragStop,
+      onRadialDragUpdate: _onDragUpdate,
+      child: new Container(
+        width: double.infinity,
+        height: double.infinity,
+        color: Colors.transparent,
+        child: Center(
+          child: Container(
+            height: 140.0,
+            width: 140.0,
+            child: RadialProgressbar(
+              thumbPosition: _currentDragPercentage ?? _seekPercentage,
+              progressPercentage: _currentDragPercentage ?? _seekPercentage,
+              innerPadding: const EdgeInsets.all(10.0),
+              progressColor: accentColor.withOpacity(0.9),
+              trackColor: accentColor.withOpacity(0.3),
+              thumbSize: 6.0,
+              thumbColor: accentColor,
+              child: new ClipOval(
+                clipper: CircleClipper(),
+                child: Image.network(
+                  demoPlaylist.songs[0].albumArtUrl,
+                  fit: BoxFit.cover,
+                ),
               ),
             ),
           ),
@@ -312,12 +406,12 @@ class RadialSeekBarPainter extends CustomPainter {
 
   RadialSeekBarPainter(
       {@required this.trackWidth,
-      @required trackColor,
+      @required this.trackColor,
       @required this.progressWidth,
-      @required progressColor,
+      @required this.progressColor,
       @required this.progressPercentage,
       @required this.thumbSize,
-      @required thumbColor,
+      @required this.thumbColor,
       @required this.thumbPosition})
       : trackPaint = Paint()
           ..style = PaintingStyle.stroke
